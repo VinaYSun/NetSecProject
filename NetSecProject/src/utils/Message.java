@@ -24,6 +24,10 @@ public class Message implements Serializable{
 		this.data = data;
 	}
 	
+	public Message() {
+
+	}
+
 	public int getProtocolId() {
 		return protocolId;
 	}
@@ -48,5 +52,4 @@ public class Message implements Serializable{
 		this.data = data;
 	}
 
-	
 }
