@@ -17,7 +17,7 @@ public class MessageReader {
 	 * @param inputstring
 	 * @return message
 	 */
-	public Message messageFromJson(String inputstring) {
+	public static Message messageFromJson(String inputstring) {
 		Message msg = new Message();
 		msg = null;
 		Gson gson = new Gson();
@@ -32,7 +32,7 @@ public class MessageReader {
 	 * @param message
 	 * @return string
 	 */
-	public String messageToJson(Message msg) {
+	public static String messageToJson(Message msg) {
 		 String str = null;
 		 Gson gson = new Gson();
 		 str = gson.toJson(msg, new TypeToken<Message>() {}.getType());
@@ -46,7 +46,7 @@ public class MessageReader {
 	 * @return inputstream in String
 	 * @throws IOException
 	 */
-	public String readInputStream(BufferedReader br) throws IOException{
+	public static String readInputStream(BufferedReader br) throws IOException{
         StringBuilder sb = new StringBuilder();  
         String temp;  
         int index;  
@@ -62,11 +62,11 @@ public class MessageReader {
         return sb.toString();
 	}
 	
-	public Message getMessageFromStream(BufferedReader br) throws IOException{
+	public static Message getMessageFromStream(BufferedReader br) throws IOException{
 		String str;
-		str = this.readInputStream(br);
+		str = MessageReader.readInputStream(br);
 		Message msg = new Message();
-		msg = this.messageFromJson(str);
+		msg = MessageReader.messageFromJson(str);
 	    return msg;
 	}
 }

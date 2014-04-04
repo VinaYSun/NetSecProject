@@ -28,41 +28,26 @@ public class ClientMain {
 	private BufferedReader in;
 	private PrintWriter out;
 	private MessageReader messageReader;
-	
+	private Boolean isAuthenticated;
 	
 	public ClientMain(){
 		
 		try {
 
-			initialization();
-			
-			BufferedReader inputReader = new BufferedReader(new InputStreamReader(System.in));
-			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-	        out = new PrintWriter(socket.getOutputStream(), true);
-	         
-			int protocolId = 1;
-			int stepId = 3;
-			messageToServer.setProtocolId(protocolId);
-			messageToServer.setStepId(stepId);
-
-			
-			String clientInput;
-			while((clientInput = inputReader.readLine())!=null){
-				messageToServer.setData(clientInput.getBytes());
-				String str = messageReader.messageToJson(messageToServer);
-				out.println(str);
-				
-				String temp = new MessageReader().readInputStream(in);
-				messageFromServer = messageReader.messageFromJson(temp);
-		        String fromServer = new String(messageFromServer.getDataBytes(), "UTF-8");
-				System.out.println("From server:" + fromServer);
-				
-			}
-			
-			inputReader.close();
-//			out.close();
-//			in.close();
-//			socket.close();
+			initial();
+			//talking to server
+	        new ServerListener(this, this.socket);
+	        //talking with peer(initiator)
+	        
+	        if(isAuthenticated){
+	        	new LocalListener();
+	        	//connecting from peer(recipient)
+	        	while(true){
+	        		new PeerListener();
+	        	}
+	        }else{
+	        	System.out.println("Login authentication didn't finish");
+	        }
 
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -73,12 +58,13 @@ public class ClientMain {
 		} 
 	}
 	
-	private void initialization() throws UnknownHostException, IOException, ConnectException {
+	private void initial() throws UnknownHostException, IOException, ConnectException {
 		messageReader = new MessageReader();
 		messageToServer = new Message();
 		hostAddress = "127.0.0.1";
 		port = 8899;
 		
+		isAuthenticated = false;
 		socket = new Socket(hostAddress, port);
 	}
 
@@ -101,5 +87,12 @@ public class ClientMain {
 	public void setPeers(Map<String, List> peers) {
 		this.peers = peers;
 	}
+	
+	public Boolean getIsAuthenticated() {
+		return isAuthenticated;
+	}
 
+	public void setIsAuthenticated(Boolean isAuthenticated) {
+		this.isAuthenticated = isAuthenticated;
+	}
 }

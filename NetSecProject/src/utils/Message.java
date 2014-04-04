@@ -37,7 +37,6 @@ public class Message implements Serializable{
 	
 
 	public int getProtocolId() {
-		System.out.println("is protocolid there? ");
 		return protocolId;
 	}
 

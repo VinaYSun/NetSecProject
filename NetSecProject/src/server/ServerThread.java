@@ -29,14 +29,12 @@ public class ServerThread extends Thread{
 	private static final int LOGOUT_REQUEST = 4;
 	private BufferedReader in;
 	private PrintWriter out;
-	private MessageReader messageReader;
 	
 	public ServerThread(ServerMain server, Socket socket){
 		this.server = server;
 		this.socket = socket;
 		this.messageFromClient = new Message();
 		this.messageToClient = new Message();
-		this.messageReader = new MessageReader();
 	}
 	
 	
@@ -65,12 +63,12 @@ public class ServerThread extends Thread{
 	         
 	         while(true){
 	         
-	         String temp = messageReader.readInputStream(in);
+	         String temp = MessageReader.readInputStream(in);
 	         if(temp.equals("")) continue;
 	        
-	         messageFromClient = messageReader.messageFromJson(temp);
+	         messageFromClient = MessageReader.messageFromJson(temp);
 	         String msgData = new String(messageFromClient.getDataBytes(), "UTF-8");
-	         System.out.println(msgData);
+	         System.out.println("From client:"+msgData);
 	         
 	       //determine the feedback message
 	         switch (messageFromClient.getProtocolId()){
@@ -92,7 +90,7 @@ public class ServerThread extends Thread{
 	        		 break;
 	         }
 	        	 
-			 String str = messageReader.messageToJson(messageToClient);
+			 String str = MessageReader.messageToJson(messageToClient);
 	         counter++;
 	         //printwriter write in message;
 	         out.println(str);

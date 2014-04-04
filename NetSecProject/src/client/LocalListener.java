@@ -12,6 +12,11 @@ import java.nio.charset.Charset;
 import utils.Message;
 import utils.MessageReader;
 
+/**
+ * communicate with message recipient peers
+ * @author yaweisun
+ *
+ */
 public class LocalListener extends Thread{
 	
 	public Socket socket;
