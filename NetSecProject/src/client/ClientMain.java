@@ -1,12 +1,18 @@
 package client;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
+
+import utils.Message;
+import utils.MessageReader;
 
 
 public class ClientMain {
@@ -17,23 +23,42 @@ public class ClientMain {
 	public Map<String, List> dialogList;
 	private int port;
 	private String hostAddress;
+	private Message messageToServer;
+	private BufferedReader in;
+	private PrintWriter out;
+	private MessageReader messageReader;
+	
 	
 	public ClientMain(){
+		
 		try {
-			//需要后期载入！
-			hostAddress = "127.0.0.1";
-			port = 8899;
-			
-			socket = new Socket(hostAddress, port);
-			System.out.println("Connected:!RemotePort:" + socket.getPort() + "//LocalPort:" + socket.getLocalPort());
 
-			socket.close();
-			//start at the beginning, listen to client input and send message to server
-//		    	new LocalListener(socket).start();
-		    	
-		    //start a thread response to server message once accepted
-//		    	new ServerListener(socket).start();
-				
+			initialization();
+			
+			BufferedReader inputReader = new BufferedReader(new InputStreamReader(System.in));
+			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+	        out = new PrintWriter(socket.getOutputStream(), true);
+	         
+			int protocolId = 5;
+			int stepId = 4;
+			messageToServer.setProtocolId(protocolId);
+			messageToServer.setStepId(stepId);
+
+			
+			String clientInput;
+			while((clientInput = inputReader.readLine())!=null){
+				messageToServer.setData(clientInput.getBytes());
+				String str = messageReader.messageToJson(messageToServer);
+				out.println(str);
+				String fromServer = new MessageReader().readInputStream(in);
+				System.out.println("From server:" + fromServer);
+			}
+			
+			inputReader.close();
+//			out.close();
+//			in.close();
+//			socket.close();
+
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (ConnectException e){
@@ -43,6 +68,15 @@ public class ClientMain {
 		} 
 	}
 	
+	private void initialization() throws UnknownHostException, IOException, ConnectException {
+		messageReader = new MessageReader();
+		messageToServer = new Message();
+		hostAddress = "127.0.0.1";
+		port = 8899;
+		
+		socket = new Socket(hostAddress, port);
+	}
+
 	public static void main(String args[]){
 		new ClientMain();
 	}

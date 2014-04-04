@@ -13,10 +13,21 @@ public class ServerMain {
 	public ServerSocket serverSocket;
 	
 	
-	public ServerMain(int port) throws IOException{
-		
-		serverSocket = new ServerSocket(port);  	
-		initialize();
+	public ServerMain(int port) throws IOException {
+
+		try {
+			initialize();
+			serverSocket = new ServerSocket(port);
+			while (true) {
+				Socket client;
+				client = serverSocket.accept();
+				new ServerThread(this, client).start();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			this.serverSocket.close();
+		}
 	}
 	
 	private void initialize() {
@@ -35,18 +46,12 @@ public class ServerMain {
 	
 	public static void main(String args[]){
 
-		 try{
-		 ServerMain server = new ServerMain(8899);
+		 try {
+			new ServerMain(8899);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		 
-		 while (true) {  
-			 //start a new thread until serversocket accept a socket for communicating with client
-	         new ServerThread(server, server.getServerSocket().accept()).start();  
-	         System.out.print("Start a new thread");
-	         
-	         }  
-		 }catch(IOException e){
-			 
-		 }
 	}
 	
 	

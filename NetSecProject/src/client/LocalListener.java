@@ -10,7 +10,7 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 
 import utils.Message;
-import utils.MessageConverter;
+import utils.MessageReader;
 
 public class LocalListener extends Thread{
 	
@@ -54,7 +54,7 @@ public class LocalListener extends Thread{
 		     Message msg = new Message(1,1,b);
 			 System.out.println("pass");
 
-		     String msgbyString = new MessageConverter().messageToJson(msg);
+		     String msgbyString = new MessageReader().messageToJson(msg);
 		     writer.write(msgbyString); 
 		     writer.write("eof");  
 		     writer.flush(); 
