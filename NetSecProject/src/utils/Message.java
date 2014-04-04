@@ -1,6 +1,7 @@
 package utils;
 
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.security.Timestamp;
 import java.text.SimpleDateFormat;
 
@@ -30,6 +31,8 @@ public class Message implements Serializable{
 	public Message() {
 		this.data = null;
 		this.timestamp = this.getTimestampToString(System.currentTimeMillis());
+		this.protocolId = 0;
+		this.stepId = 0;
 	}
 	
 
@@ -50,14 +53,22 @@ public class Message implements Serializable{
 		this.stepId = stepId;
 	}
 
-	public byte[] getData() {
+	public byte[] getDataBytes() {
 		return data;
 	}
-
+	
+	public String getData() throws UnsupportedEncodingException {
+		return new String(data, "UTF-8");
+	}
+	
 	public void setData(byte[] data) {
 		this.data = data;
 	}
 
+	public void setData(String data){
+		this.data = data.getBytes();
+	}
+	
 	public String getTimestamp() {
 		return timestamp;
 	}

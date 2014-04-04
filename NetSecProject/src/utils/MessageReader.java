@@ -61,4 +61,12 @@ public class MessageReader {
 //        System.out.println("INPUT STREAM is (without eof) "+ sb);  
         return sb.toString();
 	}
+	
+	public Message getMessageFromStream(BufferedReader br) throws IOException{
+		String str;
+		str = this.readInputStream(br);
+		Message msg = new Message();
+		msg = this.messageFromJson(str);
+	    return msg;
+	}
 }

@@ -21,8 +21,8 @@ public class ServerThread extends Thread{
 	
 	private ServerMain server;
 	private Socket socket; 
-	private Message msgFromClient;
-	private Message msgToClient;
+	private Message messageFromClient;
+	private Message messageToClient;
 	private static final int LOGIN_AUTH = 1;
 	private static final int LIST_REQUEST = 2;
 	private static final int TICKET_REQUEST = 3;
@@ -34,8 +34,8 @@ public class ServerThread extends Thread{
 	public ServerThread(ServerMain server, Socket socket){
 		this.server = server;
 		this.socket = socket;
-		this.msgFromClient = new Message();
-		this.msgToClient = new Message();
+		this.messageFromClient = new Message();
+		this.messageToClient = new Message();
 		this.messageReader = new MessageReader();
 	}
 	
@@ -66,36 +66,36 @@ public class ServerThread extends Thread{
 	         while(true){
 	         
 	         String temp = messageReader.readInputStream(in);
-
 	         if(temp.equals("")) continue;
 	        
-	         msgFromClient = messageReader.messageFromJson(temp);
-	         String msgData = new String(msgFromClient.getData(), "UTF-8");
+	         messageFromClient = messageReader.messageFromJson(temp);
+	         String msgData = new String(messageFromClient.getDataBytes(), "UTF-8");
 	         System.out.println(msgData);
 	         
-	         //printwriter write in message;
-	         out.println("welcome!  Counter ="+ counter + "eof" + "  message data" + msgData);
+	       //determine the feedback message
+	         switch (messageFromClient.getProtocolId()){
+	        	 case LOGIN_AUTH:
+	        		 LoginRequest login = new LoginRequest(server, socket, messageFromClient);
+	        		 messageToClient = login.getMsgToClient();
+	        		 break;
+	        	 case LIST_REQUEST:
+	        		 new ListRequest();
+	        		 msgData = "LIST protocol";
+	        		 break;
+	        	 case TICKET_REQUEST:
+	        	     new TicketRequest();
+	        		 msgData = "Tickets protocol";
+	        		 break;
+	        	 case LOGOUT_REQUEST:
+	        		 new LogoutRequest();
+	        		 msgData = "Log out protocol";
+	        		 break;
+	         }
+	        	 
+			 String str = messageReader.messageToJson(messageToClient);
 	         counter++;
-	         
-//	         out.println(tempData);
-//	         //determine the feedback message
-//	         switch (protocolId){
-//	        	 case LOGIN_AUTH:
-//	        		 LoginRequest login = new LoginRequest(server, socket);
-//	        		 login.verify(tempData);
-//	        		 msgToClient = login.getMsgToClient();
-//	        		 break;
-//	        	 case LIST_REQUEST:
-//	        		 new ListRequest();
-//	        		 break;
-//	        	 case TICKET_REQUEST:
-//	        	     new TicketRequest();
-//	        		 break;
-//	        	 case LOGOUT_REQUEST:
-//	        		 new LogoutRequest();
-//	        		 break;
-//	         }
-
+	         //printwriter write in message;
+	         out.println(str);
 
 			 }
 	         
@@ -124,11 +124,11 @@ public class ServerThread extends Thread{
 	}
 	
 	public Message getMessageFromClient() {
-		return msgFromClient;
+		return messageFromClient;
 	}
 
 	public void setMessageFromClient(Message msgFromClient) {
-		this.msgFromClient = msgFromClient;
+		this.messageFromClient = msgFromClient;
 	}
 
 	

@@ -24,6 +24,7 @@ public class ClientMain {
 	private int port;
 	private String hostAddress;
 	private Message messageToServer;
+	private Message messageFromServer;
 	private BufferedReader in;
 	private PrintWriter out;
 	private MessageReader messageReader;
@@ -39,8 +40,8 @@ public class ClientMain {
 			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 	        out = new PrintWriter(socket.getOutputStream(), true);
 	         
-			int protocolId = 5;
-			int stepId = 4;
+			int protocolId = 1;
+			int stepId = 3;
 			messageToServer.setProtocolId(protocolId);
 			messageToServer.setStepId(stepId);
 
@@ -50,8 +51,12 @@ public class ClientMain {
 				messageToServer.setData(clientInput.getBytes());
 				String str = messageReader.messageToJson(messageToServer);
 				out.println(str);
-				String fromServer = new MessageReader().readInputStream(in);
+				
+				String temp = new MessageReader().readInputStream(in);
+				messageFromServer = messageReader.messageFromJson(temp);
+		        String fromServer = new String(messageFromServer.getDataBytes(), "UTF-8");
 				System.out.println("From server:" + fromServer);
+				
 			}
 			
 			inputReader.close();
