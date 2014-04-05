@@ -4,7 +4,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.nio.charset.Charset;
 
-import utils.Crypto;
+import utils.CryptoUtils;
 import utils.Message;
 
 public class LoginRequest extends ServerThread{
@@ -29,7 +29,7 @@ public class LoginRequest extends ServerThread{
 		if(stepId == 1){
 			//get IP address
 			//get Random number
-			byte[] b = Crypto.generateNonce();
+			byte[] b = CryptoUtils.generateNonce();
 			System.out.println(b.toString());
 			String message = socket.getInetAddress() + "\n"+  b.toString();
 			setMessage(msgToClient, 1, 2, message);

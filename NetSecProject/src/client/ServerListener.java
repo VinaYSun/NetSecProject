@@ -30,6 +30,8 @@ public class ServerListener extends Thread{
 	private BufferedReader in;
 	private PrintWriter out;
 	private byte[] nonceR1;
+	private byte[] nonceR2;
+	private byte[] nonceR3;
 	
 	public ServerListener(ClientMain client, Socket socket) {
 		try{
@@ -81,7 +83,7 @@ public class ServerListener extends Thread{
 			System.out.println("收到的address" + IpAddress);
 			System.out.println("收到的nonce" + new String(nonceR1));
 			
-			// 3. send Kpub{ga^modp, Random R1, Random R2, Username, W}
+			// 3. send Kpub{g^amodp, Random R1, Random R2, Username, W}
 			
 			messageToServer = new Message(1, 3, "DHKey".getBytes());
 			String str1 = MessageReader.messageToJson(messageToServer);
@@ -117,7 +119,6 @@ public class ServerListener extends Thread{
 				String str = MessageReader.messageToJson(messageToServer);
 				out.println(str);
 				
-//				String temp = new MessageReader().readInputStream(in);
 				messageFromServer = MessageReader.getMessageFromStream(in);
 		        String fromServer = new String(messageFromServer.getDataBytes(), "UTF-8");
 				System.out.println("From server:" + fromServer);
