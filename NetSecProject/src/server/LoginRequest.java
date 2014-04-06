@@ -3,6 +3,7 @@ package server;
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.nio.charset.Charset;
+import java.security.NoSuchAlgorithmException;
 
 import utils.CryptoUtils;
 import utils.Message;
@@ -15,32 +16,38 @@ public class LoginRequest extends ServerThread{
 	private int stepId;
 	private Socket socket;
 	
-	public LoginRequest(ServerMain server, Socket socket, Message msg) throws UnsupportedEncodingException {
+	public LoginRequest(ServerMain server, Socket socket, Message msg) throws UnsupportedEncodingException, NoSuchAlgorithmException {
 		super(server, socket);
 		this.socket = socket;
 		msgFromClient = super.getMessageFromClient();
 		msgToClient = new Message();
 		stepId = msg.getStepId();
-//		System.out.println("login request is set up ");
 		verify();
 	}
 	
-	public void verify() throws UnsupportedEncodingException {
+	public void verify() throws UnsupportedEncodingException, NoSuchAlgorithmException {
+		
 		if(stepId == 1){
 			//get IP address
 			//get Random number
 			byte[] b = CryptoUtils.generateNonce();
 			System.out.println(b.toString());
 			String message = socket.getInetAddress() + "\n"+  b.toString();
-			setMessage(msgToClient, 1, 2, message);
+			msgToClient.setProtocolId(1);
+			msgToClient.setStepId(2);
+			msgToClient.setData(message);
 			
 		}else if(stepId == 3){
 			String message = "Session key establishment";
-			setMessage(msgToClient, 1, 4, message);
+			msgToClient.setProtocolId(1);
+			msgToClient.setStepId(4);
+			msgToClient.setData(message);
 
 		}else if(stepId == 5){
 			String message = "Login successfully";
-			setMessage(msgToClient, 1, 6, message);
+			msgToClient.setProtocolId(1);
+			msgToClient.setStepId(5);
+			msgToClient.setData(message);
 			System.out.println("finish authentication");
 
 		}else {
@@ -57,10 +64,4 @@ public class LoginRequest extends ServerThread{
 		this.msgToClient = msgToClient;
 	}
 	
-	public void setMessage(Message message, int protocolId, int stepId, String str) throws UnsupportedEncodingException{
-		message.setProtocolId(protocolId);
-		message.setStepId(stepId);
-		message.setData(str);
-	}
-
 }

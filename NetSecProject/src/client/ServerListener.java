@@ -10,7 +10,10 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 
+import utils.CryptoUtils;
 import utils.Message;
 import utils.MessageReader;
 
@@ -29,9 +32,11 @@ public class ServerListener extends Thread{
 	
 	private BufferedReader in;
 	private PrintWriter out;
-	private byte[] nonceR1;
-	private byte[] nonceR2;
-	private byte[] nonceR3;
+	private byte[] randomR1;
+	//128-bits salt randomR2
+	private String randomR2;
+	private byte[] randomR3;
+	private PublicKey publicKey;
 	
 	public ServerListener(ClientMain client, Socket socket) {
 		try{
@@ -41,8 +46,15 @@ public class ServerListener extends Thread{
 		this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.out = new PrintWriter(socket.getOutputStream(), true);
 		this.inputReader = new BufferedReader(new InputStreamReader(System.in));
-		nonceR1 = new byte[128];
+		randomR1 = new byte[128];
+		randomR2 = null;
 		
+		try {
+			publicKey = CryptoUtils.getPublicKey("public.der");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		start();
 		}catch(IOException e){
 			e.printStackTrace();
@@ -62,40 +74,75 @@ public class ServerListener extends Thread{
 		try {
 
 			// 1. send "LOGIN"
-			messageToServer = new Message(1, 1, "LOGIN".getBytes());
+			messageToServer.setProtocolId(1);
+			messageToServer.setStepId(1);
+			messageToServer.setData("LOGIN");
 			String str = MessageReader.messageToJson(messageToServer);
 			out.println(str);
 
+			
 			// 2. wait until receive {IP of local, Random R1}
 			messageFromServer = MessageReader.getMessageFromStream(in);
-			System.out.println("From server(reply message(1,1,Login)):\n "+ messageFromServer.getData());
+			
+			if (messageFromServer.getProtocolId() == 1
+				 && messageFromServer.getStepId() == 2) {
 
-			// convert String into InputStream
-			InputStream is = new ByteArrayInputStream(messageFromServer.getDataBytes());
+				System.out.println("From server(reply message(1,1,Login)):\n "
+						+ messageFromServer.getData());
 
-			// read it with BufferedReader
-			BufferedReader br = new BufferedReader(new InputStreamReader(is));
+				// convert String into InputStream
+				InputStream is = new ByteArrayInputStream(messageFromServer.getDataBytes());
+				BufferedReader br = new BufferedReader(new InputStreamReader(is));
 
-			String IpAddress = br.readLine();
-			nonceR1 = br.readLine().getBytes();
-			br.close();
+				String IpAddress = br.readLine();
+				randomR1 = br.readLine().getBytes();
+				is.close();
+				br.close();
+
+				System.out.println("收到的address" + IpAddress);
+				System.out.println("收到的nonce" + new String(randomR1));
+
+				// 3. send Kpub{g^amodp, Random R1, Random R2, Username, W}
+				//create ciphertext
+				String ciphertext = null;
+				
+				String DHkey = null;
+				System.out.println("Please input your username and password: \n");
+				System.out.println("Username:");
+				//read username
+				String username = "username";
+				
+				//read password
+				System.out.println("Password:");
+				String password = "password";
+				
+				randomR2 = CryptoUtils.getSalt();
+				password = CryptoUtils.getSaltHash(password, randomR2);
+
+				//				getList(DHkey, randomR1, username, password, randomR2);
+				
+				
+				messageToServer.setProtocolId(1);
+				messageToServer.setStepId(3);
+				messageToServer.setData(ciphertext);
+				String str3 = MessageReader.messageToJson(messageToServer);
+				out.println(str3);
+				
+				
+				// 4. wait until recieve Key{g^smodp, Random R3} key =
+				// Hash{R2|W}
+				messageFromServer = MessageReader.getMessageFromStream(in);
+				System.out.println("From server(reply message(1,3)):\n "
+						+ messageFromServer.getData());
+			}
 			
-			System.out.println("收到的address" + IpAddress);
-			System.out.println("收到的nonce" + new String(nonceR1));
-			
-			// 3. send Kpub{g^amodp, Random R1, Random R2, Username, W}
-			
-			messageToServer = new Message(1, 3, "DHKey".getBytes());
-			String str1 = MessageReader.messageToJson(messageToServer);
-			out.println(str1);
-			
-			// 4. wait until recieve Key{g^smodp, Random R3} key = Hash{R2|W}
-			messageFromServer = MessageReader.getMessageFromStream(in);
-			System.out.println("From server(reply message(1,3)):\n "+ messageFromServer.getData());
 			
 			
 			
 		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -122,7 +169,10 @@ public class ServerListener extends Thread{
 				messageFromServer = MessageReader.getMessageFromStream(in);
 		        String fromServer = new String(messageFromServer.getDataBytes(), "UTF-8");
 				System.out.println("From server:" + fromServer);
-				
+				System.out.println("server socket port:" + socket.getPort());
+				System.out.println("local socket port"+ socket.getLocalPort());
+     	        System.out.println("Channel number"+socket.getChannel());
+
 			}
 			
 
@@ -132,4 +182,14 @@ public class ServerListener extends Thread{
 			e.printStackTrace();
 		}
 	}
+	
+	public static void main(String args[]) throws Exception{
+    	String file1 = "public.der";
+    	String file2 = "private.der";
+    	CryptoUtils.getPublicKey(file1);
+    	
+    	CryptoUtils.getPrivateKey(file2);
+
+
+    }
 }

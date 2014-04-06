@@ -47,13 +47,15 @@ public class FileUtils {
         }  
     }  
     
-    public static void main(String args[]) throws IOException{
-    	String file = "public.der";
-//    	String file = "Message.java";
-    	File f = new File(file);
-    	System.out.println(f.getPath());
-    	System.out.println(f.getCanonicalPath());
-    	System.out.println(f.exists());
-//    	FileUtils.toByteArray(file);
+    public static void main(String args[]) throws Exception{
+    	String file1 = "public.der";
+    	String file2 = "private.der";
+
+
+    	CryptoUtils.getPublicKey(file1);
+    	
+    	CryptoUtils.getPrivateKey(file2);
+
+
     }
 }

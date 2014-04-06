@@ -1,5 +1,6 @@
 package utils;
 
+import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.security.Timestamp;
@@ -82,4 +83,20 @@ public class Message implements Serializable{
 		  String d = format.format(time);
 		  return d;
 	}
+	
+	public void getBytes(){
+		
+	}
+	
+	public static void main(){
+		
+		//sending message login
+		byte[] data_1_1 = new byte[65536];
+		
+		
+		//loading message login
+		
+	}
+
+
 }

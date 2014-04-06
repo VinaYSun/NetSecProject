@@ -7,6 +7,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -47,12 +48,12 @@ public class ServerThread extends Thread{
 		}
 	}
 	
-	
 	/**
 	 * 1.receive message from client
 	 * 2.send reply message
+	 * @throws NoSuchAlgorithmException 
 	 */
-	private void handleSocket() {
+	private void handleSocket() throws NoSuchAlgorithmException {
 		
 		try {
 
@@ -69,6 +70,9 @@ public class ServerThread extends Thread{
 	         messageFromClient = MessageReader.messageFromJson(temp);
 	         String msgData = new String(messageFromClient.getDataBytes(), "UTF-8");
 	         System.out.println("From client:"+msgData);
+	         System.out.println("Local port bound"+socket.getLocalPort());
+	         System.out.println("Client socket port"+socket.getPort());
+	         System.out.println("Channel number"+socket.getChannel());
 	         
 	       //determine the feedback message
 	         switch (messageFromClient.getProtocolId()){
