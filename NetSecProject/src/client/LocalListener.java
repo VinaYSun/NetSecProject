@@ -7,13 +7,14 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 
 import utils.Message;
 import utils.MessageReader;
 
 /**
- * communicate with message recipient peers
+ * send invitation to the other client
  * @author yaweisun
  *
  */
@@ -24,18 +25,23 @@ public class LocalListener extends Thread{
 	public LocalListener(){
 		
 	}
-	
-	public LocalListener(Socket socket) {
-		this.socket = socket;
+
+	public LocalListener(ClientMain client, String chatToName) throws UnknownHostException, IOException {
+		String hostAddress = "127.0.0.1";
+		//通过chatToName 查找到对应的IP/Port number, 
+		int port = 9999;
+		socket = new Socket(hostAddress, port);
 	}
 
 	@Override
 	public void run() {
 		try {
+			
 			while(true){
+				
 				String message = this.readInput();
 				if(message != null)
-					sendRequest(message);
+				sendRequest();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -43,32 +49,10 @@ public class LocalListener extends Thread{
 	}
 
 
-	private void sendRequest(String str) throws IOException {
+	private void sendRequest() throws IOException {
 		
-		 try{
-			 
-			 System.out.println("user input is "+ str);
-			 if(socket.isClosed()){
-				 System.out.println();
-				 socket = new Socket("127.0.0.1",8899);
-			 }
-			 Writer writer = new OutputStreamWriter(this.socket.getOutputStream());  
-			 System.out.println("pass");
-			 byte[] b = str.getBytes(Charset.forName("UTF-8"));
-
-		     Message msg = new Message(1,1,b);
-			 System.out.println("pass");
-
-		     String msgbyString = new MessageReader().messageToJson(msg);
-		     writer.write(msgbyString); 
-		     writer.write("eof");  
-		     writer.flush(); 
-		     writer.close();
-		     System.out.println("I sent "+ msgbyString +"to server");		
-
-		 }catch(IOException e){
-			 e.printStackTrace();
-		 }
+		
+		
 	}
 
 	/**

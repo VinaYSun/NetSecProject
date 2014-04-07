@@ -1,7 +1,9 @@
 package utils;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyFactory;
@@ -12,18 +14,15 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.Signature;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
+import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.interfaces.DHPrivateKey;
 import javax.crypto.interfaces.DHPublicKey;
@@ -43,10 +42,22 @@ public class CryptoUtils {
 	 */
 	public static byte[] generateNonce() throws UnsupportedEncodingException, NoSuchAlgorithmException { 
         SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
-		byte[] bytes = new byte[1024/8];
+		byte[] bytes = new byte[128/8];
 	    random.nextBytes(bytes);
-	    System.out.println("Nounce is  "+ bytes + "with length " + bytes.length);
+//	    System.out.println("Nounce is  "+ bytes + "with length " + bytes.length);
 	    return bytes;
+	}
+	
+	/**
+	 * Generate 128-bits aes secret key
+	 * @return AES key
+	 * @throws NoSuchAlgorithmException
+	 */
+	private static Key generateAESKey() throws NoSuchAlgorithmException {
+		KeyGenerator  kg = KeyGenerator.getInstance("AES");
+		kg.init(128);
+	    SecretKey  secretKey = kg.generateKey();
+		return secretKey;
 	}
 	
 	/**
@@ -65,7 +76,7 @@ public class CryptoUtils {
     }  
 	
 	/**
-	 * Generate 512-bits DH key pair on the basis of input key 
+	 * Generate 512-bits DH key pair from input key 
 	 * @param public key from the other side
 	 * @return Map<keyname, key>
 	 * @throws Exception
@@ -150,7 +161,7 @@ public class CryptoUtils {
     }  
 	
 	/**
-	 * AES Encrypt
+	 * AES Decrypt
 	 * @param data
 	 * @param AES key
 	 * @return encrypted data
@@ -162,11 +173,12 @@ public class CryptoUtils {
         return cipher.doFinal(data);  
     }  
     
-	public static byte[] getSignature(){
-		
-		return null;
-	}
-	
+	/**
+	 * Load private key from keyfile
+	 * @param privateKeyFileName
+	 * @return  PrivateKey
+	 * @throws Exception
+	 */
 	public static PrivateKey getPrivateKey(String privateKeyFileName) throws Exception{
 		KeyFactory rsaKeyFactory = KeyFactory.getInstance("RSA");
 		byte[] privateKey = FileUtils.toByteArray(privateKeyFileName);
@@ -176,6 +188,12 @@ public class CryptoUtils {
 		return key;
 	}
 	
+	/**
+	 * Load public key from keyfile
+	 * @param publicKeyFileName
+	 * @return PublicKey
+	 * @throws Exception
+	 */
 	public static PublicKey getPublicKey(String publicKeyFileName) throws Exception{
 		KeyFactory rsaKeyFactory = KeyFactory.getInstance("RSA");
 		byte[] publicKey = FileUtils.toByteArray(publicKeyFileName);
@@ -185,37 +203,91 @@ public class CryptoUtils {
 		return key;
 	}
 	
+	/**
+	 * Generate AES key from hashed password
+	 * @param byte
+	 * @return Key
+	 * @throws NoSuchAlgorithmException
+	 */
 	public static Key generateKeyFromPassword(byte[] key) throws NoSuchAlgorithmException{
 		MessageDigest md = MessageDigest.getInstance("SHA-256");
 		key = md.digest(key);
 		SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
 		return secretKeySpec;
 	}
-	 
+	
+	/**
+	 * Generate AES key from byte
+	 * @param byte
+	 * @return Key
+	 * @throws NoSuchAlgorithmException
+	 */
+	private static Key generateKeyFromByte(byte[] b) throws NoSuchAlgorithmException{
+		MessageDigest md = MessageDigest.getInstance("SHA-256");
+		b = md.digest(b);
+		SecretKeySpec secretKeySpec = new SecretKeySpec(b, "AES");
+		return secretKeySpec;
+	}
+	
+	/**
+	 * Encyrption with RSA public key
+	 * @param plaintext
+	 * @param publicKey
+	 * @return cipherdata
+	 * @throws Exception
+	 */
 	public static byte[] encryptByRSAPublicKey(byte[] data, Key publicKey) throws Exception{
 		Cipher cipher = Cipher.getInstance("RSA/ECB/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, publicKey);
         return cipher.doFinal(data);
 	}
 	
+	/**
+	 * Decryption with RSA private key
+	 * @param cipherdata
+	 * @param privateKey
+	 * @return plaintext
+	 * @throws Exception
+	 */
 	public static byte[] decryptByRSAPrivateKey(byte[] data, Key privateKey)throws Exception{
 		Cipher cipher = Cipher.getInstance("RSA/ECB/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, privateKey);
         return cipher.doFinal(data);
 	}
 	
+	/**
+	 * Encryption with RSA private key 
+	 * @param plaintext
+	 * @param privateKey
+	 * @return cipherdata
+	 * @throws Exception
+	 */
 	public static byte[] encryptByRSAPrivateKey(byte[] data, Key privateKey) throws Exception{
 		Cipher cipher = Cipher.getInstance("RSA/ECB/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, privateKey);
         return cipher.doFinal(data);
 	}
 	
+	/**
+	 * Decryption with RSA public key
+	 * @param cipherdata
+	 * @param publicKey
+	 * @return plaintext
+	 * @throws Exception
+	 */
 	public static byte[] decryptByRSAPublicKey(byte[] data, Key publicKey) throws Exception{
 		Cipher cipher = Cipher.getInstance("RSA/ECB/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, publicKey);
         return cipher.doFinal(data);
 	}
 	
+	/**
+	 * Encyrption with RSA public key(byte format)
+	 * @param plaintext
+	 * @param publicKey
+	 * @return cipherdata
+	 * @throws Exception
+	 */
 	public static byte[] encryptByRSAPublicKey(byte[] data, byte[] publicKey) throws Exception{
 		KeyFactory rsaKeyFactory = KeyFactory.getInstance("RSA");
 		X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKey);
@@ -225,6 +297,13 @@ public class CryptoUtils {
         return cipher.doFinal(data);
 	}
 	
+	/**
+	 * Decryption with RSA private key(byte format)
+	 * @param cipherdata
+	 * @param privateKey
+	 * @return plaintext
+	 * @throws Exception
+	 */
 	public static byte[] decryptByRSAPrivateKey(byte[] data, byte[] privateKey)throws Exception{
 		KeyFactory rsaKeyFactory = KeyFactory.getInstance("RSA");
 		PKCS8EncodedKeySpec	 privateKeySpec = new PKCS8EncodedKeySpec(privateKey);
@@ -234,6 +313,13 @@ public class CryptoUtils {
         return cipher.doFinal(data);
 	}
 	
+	/**
+	 * Encryption with RSA private key(byte format)
+	 * @param plaintext
+	 * @param privateKey
+	 * @return cipherdata
+	 * @throws Exception
+	 */
 	public static byte[] encryptByRSAPrivateKey(byte[] data, byte[] privateKey) throws Exception{
 		KeyFactory rsaKeyFactory = KeyFactory.getInstance("RSA");
 		PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKey);
@@ -243,6 +329,13 @@ public class CryptoUtils {
         return cipher.doFinal(data);
 	}
 	
+	/**
+	 * Decryption with RSA public key(byte format)
+	 * @param cipherdata
+	 * @param publicKey
+	 * @return plaintext
+	 * @throws Exception
+	 */
 	public static byte[] decryptByRSAPublicKey(byte[] data, byte[] publicKey) throws Exception{
 		KeyFactory rsaKeyFactory = KeyFactory.getInstance("RSA");
 		X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKey);
@@ -251,8 +344,9 @@ public class CryptoUtils {
         cipher.init(Cipher.DECRYPT_MODE, key);
         return cipher.doFinal(data);
 	}
+	
 	/**
-	 * Hash with salt using SHA-256
+	 * Get message digest by SHA-256
 	 * @param string
 	 * @param salt
 	 * @return hash String
@@ -292,6 +386,33 @@ public class CryptoUtils {
     }
 
 	/**
+	 * Hash with salt using SHA-256
+	 * @param string
+	 * @param salt
+	 * @return hash String
+	 */
+	public static String getSaltHash(String string, byte[] salt)
+	{
+        String generatedPassword = null;
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(salt);
+            byte[] bytes = md.digest(string.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for(int i=0; i< bytes.length ;i++)
+            {
+                sb.append(Integer.toString((bytes[i] & 0xff) + 0x100, 16).substring(1));
+            }
+            generatedPassword = sb.toString();
+        } 
+        catch (NoSuchAlgorithmException e) 
+        {
+            e.printStackTrace();
+        }
+        return generatedPassword;
+    }
+	
+	/**
 	 * Get 128-bits salt
 	 * @return String
 	 * @throws NoSuchAlgorithmException
@@ -299,7 +420,7 @@ public class CryptoUtils {
     public static String getSalt() throws NoSuchAlgorithmException
     {
         SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
-        byte[] salt = new byte[8];
+        byte[] salt = new byte[16];
         sr.nextBytes(salt);
         return salt.toString();
     }
@@ -350,17 +471,27 @@ public class CryptoUtils {
      * @param char 
      * @return byte 
      */  
-    private static byte charToByte(char c) {  
+    public static byte charToByte(char c) {  
         return (byte) "0123456789ABCDEF".indexOf(c);  
     }  
     
-    private static byte[] mapToByte(Map<String, byte[]> map){
+    /**
+     * Convert Map<String, byte[]> to byte 
+     * @param Map<String, byte[]>
+     * @return byte[]
+     */
+    public static byte[] mapToByte(Map<String, byte[]> map){
     	Gson gson = new Gson();
     	String str = gson.toJson(map,  new TypeToken<Map<String, byte[]>>(){}.getType());
     	return str.getBytes();
     }
     
-    private static Map<String, byte[]> mapFromByte(byte[] b){
+    /**
+     * COnvert byte to Map<String, byte[]>
+     * @param byte
+     * @return Map<String, byte[]>
+     */
+    public static Map<String, byte[]> mapFromByte(byte[] b){
     	String json = new String(b);
     	Gson gson = new Gson();
     	Map<String, byte[]> map = gson.fromJson(json, new TypeToken<Map<String, byte[]>>(){}.getType());
@@ -378,7 +509,79 @@ public class CryptoUtils {
     }
     
 	public static void main(String[] args) throws Exception {
-	       
+	       	
+		//**
+		/////generate passwords for SERVER
+		/*
+			String salt1 = getSalt();
+	        String securePassword = getSaltHash("team", salt1);
+	        System.out.println("yawei"+":"+CryptoUtils.bytesToHexString(salt1.getBytes()) +":"+ securePassword);
+			
+	        String salt2 = getSalt();
+	        securePassword = getSaltHash("boss", salt2);
+	        System.out.println("nimita"+":"+CryptoUtils.bytesToHexString(salt2.getBytes()) +":"+ securePassword);
+	        
+
+		*/
+		/*
+	        FileReader reader = new FileReader("UserInformation.txt");
+	        BufferedReader br = new BufferedReader(reader);
+	        String s1 = null;
+	        Map<String, String> map = new HashMap<String, String>();
+	        while((s1 = br.readLine()) != null) {
+	        	String[] section = s1.split(":");
+		        String name = section[0];
+		        String pwdsalt = section[1];
+		        String pwd = section[2];
+		        System.out.println(name);
+		        System.out.println(pwdsalt);
+		        System.out.println(pwd);
+		        map.put(name, pwdsalt+":"+pwd);
+	        }
+	        br.close();
+	        reader.close();
+	        
+	        System.out.println(map.get("nimita"));
+	        
+	        String[] section = map.get("nimita").split(":");
+	        String tempsalt = section[0];
+	        String temppwd = section[1];
+        	
+	        BufferedReader br2 = new BufferedReader(new InputStreamReader(System.in));
+
+	        int counter = 0;
+	        while(counter < 4 ){
+	        	
+	        	System.out.println("Password:");
+
+	        	String str = null;
+	            str = br2.readLine();
+	        	System.out.println("your value is :"+str);
+
+		        String loginPassword = getSaltHash(str, new String(CryptoUtils.hexStringToBytes(tempsalt)));
+		        
+	        	if(loginPassword.equals(temppwd)){
+	        	System.out.println("Correct password!");
+	        	break;
+	        	}
+	        	if(counter == 0){
+		        	System.out.println("Incorrect password, try again");
+	        	}
+	        	if(counter == 1){
+		        	System.out.println("Incorrect password, 2 more times to try");
+	        	}
+	        	if(counter == 2){
+		        	System.out.println("Incorrect password, 1 more times to try");
+	        	}
+	        	if(counter == 3){
+	        		System.out.println("Sorry...You have reached the maximum trying time");
+	        		//remember this user name and save the timestamp
+	        		////////////
+	        	}
+	        	counter++;
+	        }
+*/
+	        /*
 		 	String passwordToHash = "password";
 	        String salt = getSalt();
 	        System.out.println(salt);
@@ -425,14 +628,15 @@ public class CryptoUtils {
         	System.out.println("\n"+ new String(cipher4));
         	
         	//generate a AES key from password
-	        String pwd = getSaltHash("passdfswdddddddddord", salt);
+        	 */
+	        String pwd = getSaltHash("passdfswdddddddddord", getSalt());
 	        
 	        Key key = CryptoUtils.generateKeyFromPassword(pwd.getBytes());
 	    	byte[] cipher5 = CryptoUtils.encryptByAES("password key".getBytes(), key);
         	byte[] cipher6 = CryptoUtils.decryptByAES(cipher5, key);
         	System.out.println("\n"+ new String(cipher6));
         	
-        	
+        	/*
         	
         	//RSA 加密解密
         	byte[] data = CryptoUtils.encryptByRSAPrivateKey("hello world".getBytes(), CryptoUtils.getPrivateKey("private.der"));
@@ -476,6 +680,12 @@ public class CryptoUtils {
         	byte[] data3 = CryptoUtils.encryptByRSAPrivateKey("hello world Successful!!".getBytes(), map.get("privatekey"));
         	byte[] result3 = CryptoUtils.decryptByRSAPublicKey(data3, map2.get("publickey"));
         	System.out.println("RSA pri- pub----"+ new String(result3));
-
+			*/
+			Key publickey = CryptoUtils.getPublicKey("public.der");
+        	Key privatekey = CryptoUtils.getPrivateKey("private.der");
+        	byte[] data3 = CryptoUtils.encryptByRSAPublicKey("hello world Successful!!".getBytes(), publickey);
+        	byte[] result3 = CryptoUtils.decryptByRSAPrivateKey(data3, privatekey);
+        	System.out.println(new String(result3));
 	}
+
 }

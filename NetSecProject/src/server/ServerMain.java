@@ -1,23 +1,37 @@
 package server;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.ServerSocket;
+import java.util.HashMap;
 import java.util.Map;
 
 import utils.Message;
+import utils.NetUtils;
 
 public class ServerMain {
 	
-	public Map<String, String> userMap;
+	public Map<String, String> passwordBook = null;
 	public ServerSocket serverSocket;
-	
-	
-	public ServerMain(int port) throws IOException {
+	public HashMap<String, byte[]> userList = null;
+	public HashMap<String, Integer> userAddress = null;
 
+	public HashMap<String, Integer> getUserAddress() {
+		return userAddress;
+	}
+
+	public void setUserAddress(HashMap<String, Integer> userAddress) {
+		this.userAddress = userAddress;
+	}
+
+	public ServerMain() throws IOException {
 		try {
 			initialize();
-			serverSocket = new ServerSocket(port);
+			NetUtils.isLocalPortUsing(8899);
+			serverSocket = new ServerSocket(8899);
 			while (true) {
 				Socket client;
 				client = serverSocket.accept();
@@ -26,49 +40,71 @@ public class ServerMain {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			this.serverSocket.close();
+			serverSocket.close();
 		}
 	}
 	
-	private void initialize() {
-		
-		loadPrivateKey();
-		loadUser();
+	private void initialize() throws FileNotFoundException {
+		userList = new HashMap<String, byte[]>();
+		passwordBook = new HashMap<String, String>();
+		loadPassword("UserInformation.txt");
 	}
 
-	private void loadUser() {
-
-	}
-
-	private void loadPrivateKey() {
-		
+	private void loadPassword(String passwordfile) throws FileNotFoundException  {
+		FileReader reader = new FileReader(passwordfile);
+        BufferedReader br = new BufferedReader(reader);
+        String s1 = null;
+        try {
+			while((s1 = br.readLine()) != null) {
+				String[] section = s1.split(":");
+			    String name = section[0];
+			    String pwdsalt = section[1];
+			    String pwd = section[2];
+			    System.out.println(name);
+			    System.out.println(pwdsalt);
+			    System.out.println(pwd);
+			    passwordBook.put(name, pwdsalt+":"+pwd);
+			}
+			reader.close();
+			br.close();
+		}catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} 
 	}
 	
 	public static void main(String args[]){
 
 		 try {
-			new ServerMain(8899);
+			new ServerMain();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		 
 	}
 	
-	
-		public Map<String, String> getUserMap() {
-			return userMap;
-		}
+	public Map<String, String> getPasswordBook() {
+		return passwordBook;
+	}
 
-		public void setUserMap(Map<String, String> userMap) {
-			this.userMap = userMap;
-		}
+	public void setPasswordBook(Map<String, String> passwordBook) {
+		this.passwordBook = passwordBook;
+	}
 
-		public ServerSocket getServerSocket() {
+	public ServerSocket getServerSocket() {
 			return serverSocket;
-		}
+	}
 
-		public void setServerSocket(ServerSocket serverSocket) {
+	public void setServerSocket(ServerSocket serverSocket) {
 			this.serverSocket = serverSocket;
-		}
+	}
+	
+	public HashMap<String, byte[]> getUserList() {
+		return userList;
+	}
 
+	public void setUserList(HashMap<String, byte[]> userList) {
+		this.userList = userList;
+	}
 }

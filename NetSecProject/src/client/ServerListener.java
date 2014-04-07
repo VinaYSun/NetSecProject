@@ -10,9 +10,13 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
+import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.util.HashMap;
+import java.util.Map;
 
+import server.ServerThread;
 import utils.CryptoUtils;
 import utils.Message;
 import utils.MessageReader;
@@ -26,17 +30,25 @@ public class ServerListener extends Thread{
 	
 	public ClientMain client;
 	public Socket socket;
-	private BufferedReader inputReader;
+	
+	private BufferedReader inputRead;
 	private Message messageToServer;
 	private Message messageFromServer;
 	
 	private BufferedReader in;
 	private PrintWriter out;
-	private byte[] randomR1;
+	private String R1;
 	//128-bits salt randomR2
-	private String randomR2;
-	private byte[] randomR3;
-	private PublicKey publicKey;
+	private String R2;
+	private byte[] R3;
+	private PublicKey publicKey = null;
+	private static int WRONG_PASSWORD = 6;
+	private Map<String, Key> dhKeyMap;
+	private String password = null;
+	private Key aesSessionKey;
+	private boolean isAuthenticated = false;
+	private LocalListener localListener = null;
+	private String userName;
 	
 	public ServerListener(ClientMain client, Socket socket) {
 		try{
@@ -45,11 +57,13 @@ public class ServerListener extends Thread{
 		this.client = client;
 		this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.out = new PrintWriter(socket.getOutputStream(), true);
-		this.inputReader = new BufferedReader(new InputStreamReader(System.in));
-		randomR1 = new byte[128];
-		randomR2 = null;
+		this.inputRead = new BufferedReader(new InputStreamReader(System.in));
 		
+		R1 = null;
+		R2 = null;
+
 		try {
+			dhKeyMap = CryptoUtils.generateDHKey();
 			publicKey = CryptoUtils.getPublicKey("public.der");
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -64,13 +78,6 @@ public class ServerListener extends Thread{
 	@Override
 	public void run() {
 
-		// initial login authentication
-		// 1. send "LOGIN"
-		// 2. wait until receive {IP of local, Random R1}
-		// 3. send Kpub{ga^modp, Random R1, Random R2, Username, W}
-		// 4. wait until recieve Key{g^smodp, Random R3} key = Hash{R2|W}
-		// 5. send Kas{R3}
-		// update his state
 		try {
 
 			// 1. send "LOGIN"
@@ -79,117 +86,294 @@ public class ServerListener extends Thread{
 			messageToServer.setData("LOGIN");
 			String str = MessageReader.messageToJson(messageToServer);
 			out.println(str);
-
+			System.out.println(client.getListenerPort());
 			
 			// 2. wait until receive {IP of local, Random R1}
 			messageFromServer = MessageReader.getMessageFromStream(in);
-			
-			if (messageFromServer.getProtocolId() == 1
-				 && messageFromServer.getStepId() == 2) {
+	    	System.out.print("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ")");
 
-				System.out.println("From server(reply message(1,1,Login)):\n "
-						+ messageFromServer.getData());
-
-				// convert String into InputStream
+			if(messageFromServer.getProtocolId() == 1 && messageFromServer.getStepId() == 2){
+				//get R1
 				InputStream is = new ByteArrayInputStream(messageFromServer.getDataBytes());
 				BufferedReader br = new BufferedReader(new InputStreamReader(is));
 
 				String IpAddress = br.readLine();
-				randomR1 = br.readLine().getBytes();
+				R1 = br.readLine();
 				is.close();
 				br.close();
-
-				System.out.println("收到的address" + IpAddress);
-				System.out.println("收到的nonce" + new String(randomR1));
-
-				// 3. send Kpub{g^amodp, Random R1, Random R2, Username, W}
-				//create ciphertext
-				String ciphertext = null;
-				
-				String DHkey = null;
-				System.out.println("Please input your username and password: \n");
-				System.out.println("Username:");
-				//read username
-				String username = "username";
-				
-				//read password
-				System.out.println("Password:");
-				String password = "password";
-				
-				randomR2 = CryptoUtils.getSalt();
-				password = CryptoUtils.getSaltHash(password, randomR2);
-
-				//				getList(DHkey, randomR1, username, password, randomR2);
-				
-				
-				messageToServer.setProtocolId(1);
-				messageToServer.setStepId(3);
-				messageToServer.setData(ciphertext);
-				String str3 = MessageReader.messageToJson(messageToServer);
-				out.println(str3);
-				
-				
-				// 4. wait until recieve Key{g^smodp, Random R3} key =
-				// Hash{R2|W}
-				messageFromServer = MessageReader.getMessageFromStream(in);
-				System.out.println("From server(reply message(1,3)):\n "
-						+ messageFromServer.getData());
+			}else{
+				System.out.println("Didn't get message(1,1,data), ipa and r1");
 			}
 			
+			//3. send password to prove identity
+			int counter = 0;
+			System.out.println("USERNAME:");
+	        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+	        String inputname = br.readLine();
 			
+			while(counter < 3 ){
+				
+				if(R1 == null){
+					//just leave it
+					R1 = CryptoUtils.getSalt();
+				}
+				//prepare R2
+				R2 = CryptoUtils.getSalt();
+				
+				//prepare DH key
+	        	Key publickeyA = dhKeyMap.get("public_key");
+	        	
+	        	//prepare a random byte 
+	        	byte[] secretkey = CryptoUtils.generateNonce();
+	        	//generate a aes key
+	        	Key aeskey = CryptoUtils.generateKeyFromPassword(secretkey);
+	        	aesSessionKey = aeskey;
+	        	
+	        	//encrypt byte with public key
+	        	byte[] encryptedSecretKey = CryptoUtils.encryptByRSAPublicKey(secretkey, publicKey);
+	        	
+	        	//get password
+				System.out.println("Password:");
+	        	password = br.readLine();
+	            
+				//put elements into map
+	        	Map<String, byte[]> map = new HashMap<String, byte[]>();
+	        	map.put("username", inputname.getBytes());
+	        	map.put("password", password.getBytes());
+	        	map.put("gamodp", publickeyA.getEncoded());
+	        	map.put("R1", R1.getBytes());
+	        	map.put("R2", R2.getBytes());
+	        	
+	        	byte[] plaintextMap = CryptoUtils.mapToByte(map);
+	        	
+
+	        	//encrypt plaintext with temporary aes key
+	        	byte[] ciphertextMap = CryptoUtils.encryptByAES(plaintextMap, aeskey);
+	        	
+	        	Map<String, byte[]> msgdatamap = new HashMap<String, byte[]>();
+	        	msgdatamap.put("ciphertext", ciphertextMap);
+	        	msgdatamap.put("encryptedaeskey", secretkey);
+	        	//This should not be!!!
+//	        	msgdatamap.put("encryptedaeskey", encryptedSecretKey);
+
+	        	//////////now test here////////////
+	        	/*
+	        	msgdatamap.get("encryptedaeskey");
+	        	Key privatekey = CryptoUtils.getPrivateKey("private.der");
+	        	byte[] key = CryptoUtils.decryptByRSAPrivateKey(encryptedAESKey, privatekey);
+	        	System.out.println(new String(key));
+	        	byte[] k = (new String(key)).getBytes();
+	        	if(key.equals(nonce)){
+	        		System.out.println("hello is equals to hello");
+	        	}
+	        	Key secretkey = CryptoUtils.generateKeyFromPassword(msgdatamap.get("encryptedaeskey"));
+	        	byte[] plMap = CryptoUtils.decryptByAES(ciphertextMap, secretkey);
+    			*/
+	        	
+	        	//set message (1,3, key{username password gamodp r1 r2} Pub{key})
+	        	messageToServer.setData(CryptoUtils.mapToByte(msgdatamap));
+				messageToServer.setProtocolId(1);
+				messageToServer.setStepId(3);
+				
+				String pwdPacket = MessageReader.messageToJson(messageToServer);
+				out.println(pwdPacket);
+				
+				//  wait until receive message(1,4, DHkey)
+				messageFromServer = MessageReader.getMessageFromStream(in);
+		    	System.out.print("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ")");
+
+				if(messageFromServer.getProtocolId() == 1 && messageFromServer.getStepId() == 4){
+					userName = inputname;
+//					br.close();
+					break;
+				}
+				if (messageFromServer.getProtocolId() == 1 && messageFromServer.getStepId() == WRONG_PASSWORD) {
+					if(counter == 0){
+			        	System.out.println("Incorrect password, try again");
+		        	}
+		        	if(counter == 1){
+			        	System.out.println("Incorrect password, 2 more times to try");
+		        	}
+		        	if(counter == 2){
+			        	System.out.println("Incorrect password, 1 more times to try");
+		        	}
+		        	if(counter == 3){
+		        		System.out.println("You have tryied 3 time");
+		        		System.out.println("Sorry...");
+		        		br.close();
+		        		socket.close();
+		        		//!!!!!!!!!!!!!!!!ADD 
+		        		////////////remember this user name and save the timestamp
+		        		////////////
+		        	}
+				}
+	        	counter++;
+			}
+				
+			if (messageFromServer.getProtocolId() == 1 && messageFromServer.getStepId() == 4) {
+
+				System.out.println("Correct Password...");
+			    System.out.println("Receiving gsmodp from server...");
+	       
+		        //prepare password hashed with salt W = hash{R2|password}
+		    	String pwd = CryptoUtils.getSaltHash(password, R2);
+    	        Key pwdaesKey = CryptoUtils.generateKeyFromPassword(pwd.getBytes());
+				byte[] b = messageFromServer.getDataBytes();
+    	        //unpack incoming message
+				
+				///this session key is not working 
+//    	        byte[] ciphermap2 = CryptoUtils.decryptByAES(b, pwdaesKey);
+    	        byte[] ciphermap2 = CryptoUtils.decryptByAES(b, aesSessionKey);
+    	        System.out.println(new String(b));
+    	        
+				Map<String, byte[]> map = new HashMap<String, byte[]>();
+				map = CryptoUtils.mapFromByte(ciphermap2);
+				
+				byte[] dhServerPubkey = null;
+				dhServerPubkey = map.get("gsmodp");
+		        R3 = map.get("R3");
+
+		        //generate gasmodp session key and SAVE
+            	Key dhClientPriKey = dhKeyMap.get("private_key");
+            	byte[] sessionkeyKas = CryptoUtils.generateSessionKey(dhServerPubkey, dhClientPriKey.getEncoded());
+
+				//encrypt r3 with key kas
+    	        byte[] finalmsg = CryptoUtils.encryptByAES(R3, aesSessionKey);
+
+				//set message
+            	messageToServer.setProtocolId(1);
+    			messageToServer.setStepId(5);
+   				messageToServer.setData(finalmsg);
+   				String pwdPacket = MessageReader.messageToJson(messageToServer);
+				out.println(pwdPacket);
+   				System.out.println("Sending server the end  Kas{R3}");
+		    	
+   				messageFromServer = MessageReader.getMessageFromStream(in);
+		    	System.out.print("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ")");
+//		    	int port = Integer.parseInt(messageFromServer.getData());
+   				client.setIsAuthenticated(true);
+//   			client.setListenerPort(port);
+			}
 			
+			System.out.println("");
+			
+			/**
+			 * after first login step, the user log into the group
+			 */
+			if(client.getIsAuthenticated() == true){
+				//go to list/logout/chat protocols
+				System.out.println("Finish authendication!");
+				System.out.println("chat/list/logout");
+				handleRequest();
+			}else{
+				System.out.println("Need to authenticate with server");
+			}
 			
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-
-		handleSocket();
-	}
-	
-	//send input message and get reply from server;
-	// list logout request ticket
-	private void handleSocket() {
-		try {
-			  
-			String clientInput;
-
-			while((clientInput = inputReader.readLine())!=null){
-				
-				int protocolId = 1;
-				int stepId = 3;
-				messageToServer.setProtocolId(protocolId);
-				messageToServer.setStepId(stepId);
-				messageToServer.setData(clientInput.getBytes());
-				String str = MessageReader.messageToJson(messageToServer);
-				out.println(str);
-				
-				messageFromServer = MessageReader.getMessageFromStream(in);
-		        String fromServer = new String(messageFromServer.getDataBytes(), "UTF-8");
-				System.out.println("From server:" + fromServer);
-				System.out.println("server socket port:" + socket.getPort());
-				System.out.println("local socket port"+ socket.getLocalPort());
-     	        System.out.println("Channel number"+socket.getChannel());
-
-			}
-			
-
-		} catch (SocketTimeoutException e) {
-			System.out.println("数据读取超时。");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+
+	}
+
+	private void handleRequest() throws IOException {
+		while(true){
+		    String command = inputRead.readLine();
+		    if(command.equalsIgnoreCase("list")){
+		    	 System.out.println("Here is the friend list");
+		    }
+
+		    if(command.equalsIgnoreCase("chat")){
+		    	 
+		    	
+		    	 System.out.println("Sure!");
+		    	 System.out.println("Who do you want to chat with?");
+		    	 String receiverName = inputRead.readLine();
+		    	 //send server a request 
+		    	 messageToServer.setProtocolId(3);
+	    		 messageToServer.setStepId(1);
+	   			 messageToServer.setData("message for chating"+ userName + "want to talk to "+ receiverName);
+
+		    	 //send a message to server kas{userName, receiverName, R4}
+	   			 String packet = MessageReader.messageToJson(messageToServer);
+				 out.println(packet);
+		    	 System.out.print("Send Message("+ messageToServer.getProtocolId()+", "+ messageToServer.getStepId() + ")  ");
+		    	 
+		    	 //receive feed back from server 
+		    	 messageFromServer = MessageReader.getMessageFromStream(in);
+		    	 System.out.print("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ")");
+
+		    	 if(messageFromServer.getProtocolId() == 3 && messageFromServer.getStepId() == 2){
+		    		 //get server's response that I can talk to receiver
+		    		 
+		    		 //unpack the message Kas{Kbs{Kab, A}, B, Kab, R1}
+		    		 
+		    		 //get Ticket-to-b = Kbs{Kab, A} and save
+		    		 
+		    		 //get B and verify if B is true or not
+		    		 
+		    		 //get Kab and save
+		    		 
+		    		 //get R1
+		    		 
+		    		 //initialize a new socket and send something to receiverName the ticket
+		    		 //新开一个socket 准备 给作为ServerSocket的收信人发送消息
+		    		    Message messageToClient = new Message();
+		    		    Message messageFromClient = new Message();
+			    		String	hostAddress = "127.0.0.1";
+			    		int	port = 9999;
+			    		Socket inviteSocket = new Socket(hostAddress, port);
+			    		BufferedReader inviteBr = new BufferedReader(new InputStreamReader(inviteSocket.getInputStream()));
+			    		PrintWriter invitePw = new PrintWriter(inviteSocket.getOutputStream(), true);
+			    		messageToClient.setProtocolId(3);
+			    		messageToClient.setStepId(3);
+			    		messageToClient.setData("message for chating"+ userName + "want to talk to "+ receiverName);
+
+				    	//send a message to server kas{N2} Kbs{Kab, A}
+			   			String messageToC = MessageReader.messageToJson(messageToClient);
+			   			invitePw.println(messageToC);
+				    	System.out.print("Send Message("+ messageToClient.getProtocolId()+", "+ messageToClient.getStepId() + ")  ");
+				    	 
+				    	//receive feed back from server 
+				    	messageFromClient = MessageReader.getMessageFromStream(inviteBr);
+				    	System.out.print("Get Message("+ messageFromClient.getProtocolId()+", "+ messageFromClient.getStepId() + ")");
+
+			    		
+			    		//send message 
+			    		System.out.println("Connecting<sender, receiver>! <"+userName + " : "+receiverName+"> ");
+		    		 
+		    	 }else if(messageFromServer.getProtocolId() == 3 && messageFromServer.getStepId() == 3){
+		    		//this user is busy
+		    		System.out.println("User is busy");
+		    	 }else{
+		    		 //wrong message 
+		    		 System.out.println("The user:" + receiverName + " is currently not available");
+		    	 }
+		    	 
+		     }
+		     if(command.equalsIgnoreCase("logout")){
+		    	 System.out.println("logout protocol");
+	  			 client.setIsAuthenticated(false);
+		    	 break;
+			}
+			if ((command.equalsIgnoreCase("logout")
+				|| command.equalsIgnoreCase("list")
+				|| command.equalsIgnoreCase("chat")) == false){
+				System.out.println("wrong input...");
+			}
+		}
+	}
+
+	public boolean isAuthenticated() {
+		return isAuthenticated;
+	}
+
+	public void setAuthenticated(boolean isAuthenticated) {
+		this.isAuthenticated = isAuthenticated;
 	}
 	
-	public static void main(String args[]) throws Exception{
-    	String file1 = "public.der";
-    	String file2 = "private.der";
-    	CryptoUtils.getPublicKey(file1);
-    	
-    	CryptoUtils.getPrivateKey(file2);
 
-
-    }
 }

@@ -11,8 +11,10 @@ import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 
+import server.ServerThread;
 import utils.Message;
 import utils.MessageReader;
+import utils.NetUtils;
 
 
 public class ClientMain {
@@ -28,26 +30,41 @@ public class ClientMain {
 	private BufferedReader in;
 	private PrintWriter out;
 	private MessageReader messageReader;
-	private Boolean isAuthenticated;
+	public Boolean isAuthenticated;
+	public ServerSocket peerServerSocket;
+	public int listenerPort;
 	
+	public int getListenerPort() {
+		return listenerPort;
+	}
+
+	public void setListenerPort(int listenerPort) {
+		this.listenerPort = listenerPort;
+	}
+
 	public ClientMain(){
 		
 		try {
 
 			initial();
-			//talking to server
+			//initiate login authentication with server
 	        new ServerListener(this, this.socket);
 	        //talking with peer(initiator)
 	        
-	        if(isAuthenticated){
 	        	new LocalListener();
 	        	//connecting from peer(recipient)
-	        	while(true){
-	        		new PeerListener();
+	        	int port = 9000;
+	        	while(NetUtils.isLocalPortUsing(port)){
+	        		port++;
 	        	}
-	        }else{
-	        	System.out.println("Login authentication didn't finish");
-	        }
+	        	listenerPort = port;
+	        	peerServerSocket = new ServerSocket(port);
+
+	        	while(true){
+	        		Socket peerSocket;
+		        	peerSocket = peerServerSocket.accept();
+					new PeerListener(this, peerSocket).start();
+	        	}
 
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
