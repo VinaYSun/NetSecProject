@@ -41,7 +41,13 @@ public class ListRequest {
 			byte[] plaintext = CryptoUtils.decryptByAES(data, sharedKey);
 			String textString = new String(plaintext);
 			if(textString.equalsIgnoreCase("LIST")){
-				messageToClient.setData("Kas{list}");
+				StringBuffer sb = new StringBuffer();
+				for(String name : userlist.keySet()){
+					sb.append(name+"  "); 
+				}
+				String list = sb.toString();
+				byte[] listdata = CryptoUtils.encryptByAES(list.getBytes(), sharedKey);
+				messageToClient.setData(listdata);
 				messageToClient.setProtocolId(2);
 				messageToClient.setStepId(2);
 				System.out.print("send message(" +  messageToClient.getProtocolId() +" , " +messageToClient.getStepId() + " )");

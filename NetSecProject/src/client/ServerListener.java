@@ -290,7 +290,6 @@ public class ServerListener extends Thread{
 		    String command = inputRead.readLine();
 		    if(command.equalsIgnoreCase("list")){
 		    	 System.out.println("Here is the friend list");
-		    	 System.out.println("logout protocol");
 		    	 messageToServer.setProtocolId(2);
 	    		 messageToServer.setStepId(1);
 	   		     byte[] listMessage = CryptoUtils.encryptByAES("LIST".getBytes(), aesSessionKey);
@@ -299,11 +298,14 @@ public class ServerListener extends Thread{
 		    	 //send a message to server kas{"list", cookie}
 	   			 String packet = MessageReader.messageToJson(messageToServer);
 				 out.println(packet);
-		    	 System.out.print("Send Message("+ messageToServer.getProtocolId()+", "+ messageToServer.getStepId() + ")  ");
+		    	 System.out.println("Send Message("+ messageToServer.getProtocolId()+", "+ messageToServer.getStepId() + ")  ");
 		    	 
 		    	 //receive feed back from server kas{map<String, String> userlist, cookies}
 		    	 messageFromServer = MessageReader.getMessageFromStream(in);
-		    	 System.out.print("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ")");
+		    	 byte[] listbyte = messageFromServer.getDataBytes();
+		    	 byte[] listplainbyte = CryptoUtils.decryptByAES(listbyte, aesSessionKey);
+		    	 System.out.println(new String(listplainbyte));
+		    	 System.out.println("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ")");
 		    
 		    }
 
