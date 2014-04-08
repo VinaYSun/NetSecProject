@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
@@ -31,7 +32,7 @@ public class ServerListener extends Thread{
 	public ClientMain client;
 	public Socket socket;
 	
-	private BufferedReader inputRead;
+//	private BufferedReader inputRead;
 	private Message messageToServer;
 	private Message messageFromServer;
 	
@@ -57,7 +58,6 @@ public class ServerListener extends Thread{
 		this.client = client;
 		this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.out = new PrintWriter(socket.getOutputStream(), true);
-		this.inputRead = new BufferedReader(new InputStreamReader(System.in));
 		
 		R1 = null;
 		R2 = null;
@@ -68,7 +68,6 @@ public class ServerListener extends Thread{
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
 		start();
 		}catch(IOException e){
 			e.printStackTrace();
@@ -86,7 +85,7 @@ public class ServerListener extends Thread{
 			messageToServer.setData("LOGIN");
 			String str = MessageReader.messageToJson(messageToServer);
 			out.println(str);
-			System.out.println(client.getListenerPort());
+			System.out.println(client.getPort());
 			
 			// 2. wait until receive {IP of local, Random R1}
 			messageFromServer = MessageReader.getMessageFromStream(in);
@@ -143,7 +142,12 @@ public class ServerListener extends Thread{
 	        	map.put("gamodp", publickeyA.getEncoded());
 	        	map.put("R1", R1.getBytes());
 	        	map.put("R2", R2.getBytes());
+	        	int port = client.getPort();
+	        	String portString = String.valueOf(port);
+	        	byte[] portByte = portString.getBytes();
 	        	
+	        	map.put("port", portByte);
+	        
 	        	byte[] plaintextMap = CryptoUtils.mapToByte(map);
 	        	
 
@@ -212,7 +216,7 @@ public class ServerListener extends Thread{
 				
 			if (messageFromServer.getProtocolId() == 1 && messageFromServer.getStepId() == 4) {
 
-				System.out.println("Correct Password...");
+//				System.out.println("Correct Password...");
 			    System.out.println("Receiving gsmodp from server...");
 	       
 		        //prepare password hashed with salt W = hash{R2|password}
@@ -224,7 +228,7 @@ public class ServerListener extends Thread{
 				///this session key is not working 
 //    	        byte[] ciphermap2 = CryptoUtils.decryptByAES(b, pwdaesKey);
     	        byte[] ciphermap2 = CryptoUtils.decryptByAES(b, aesSessionKey);
-    	        System.out.println(new String(b));
+//    	        System.out.println(new String(b));
     	        
 				Map<String, byte[]> map = new HashMap<String, byte[]>();
 				map = CryptoUtils.mapFromByte(ciphermap2);
@@ -252,6 +256,7 @@ public class ServerListener extends Thread{
 		    	System.out.print("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ")");
 //		    	int port = Integer.parseInt(messageFromServer.getData());
    				client.setIsAuthenticated(true);
+		    	client.setSessionKeyKas(aesSessionKey.getEncoded());
 //   			client.setListenerPort(port);
 			}
 			
@@ -263,7 +268,6 @@ public class ServerListener extends Thread{
 			if(client.getIsAuthenticated() == true){
 				//go to list/logout/chat protocols
 				System.out.println("Finish authendication!");
-				System.out.println("chat/list/logout");
 				handleRequest();
 			}else{
 				System.out.println("Need to authenticate with server");
@@ -279,23 +283,42 @@ public class ServerListener extends Thread{
 
 	}
 
-	private void handleRequest() throws IOException {
+	private void handleRequest() throws Exception {
+		BufferedReader inputRead = new BufferedReader(new InputStreamReader(System.in));
 		while(true){
+			System.out.println("chat/list/logout?");
 		    String command = inputRead.readLine();
 		    if(command.equalsIgnoreCase("list")){
 		    	 System.out.println("Here is the friend list");
+		    	 System.out.println("logout protocol");
+		    	 messageToServer.setProtocolId(2);
+	    		 messageToServer.setStepId(1);
+	   		     byte[] listMessage = CryptoUtils.encryptByAES("LIST".getBytes(), aesSessionKey);
+	   			 messageToServer.setData(listMessage);
+
+		    	 //send a message to server kas{"list", cookie}
+	   			 String packet = MessageReader.messageToJson(messageToServer);
+				 out.println(packet);
+		    	 System.out.print("Send Message("+ messageToServer.getProtocolId()+", "+ messageToServer.getStepId() + ")  ");
+		    	 
+		    	 //receive feed back from server kas{map<String, String> userlist, cookies}
+		    	 messageFromServer = MessageReader.getMessageFromStream(in);
+		    	 System.out.print("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ")");
+		    
 		    }
 
 		    if(command.equalsIgnoreCase("chat")){
 		    	 
-		    	
 		    	 System.out.println("Sure!");
 		    	 System.out.println("Who do you want to chat with?");
+		    	 
 		    	 String receiverName = inputRead.readLine();
+		    	 byte[] ciphertext = CryptoUtils.encryptByAES(receiverName.getBytes(), aesSessionKey);
 		    	 //send server a request 
 		    	 messageToServer.setProtocolId(3);
 	    		 messageToServer.setStepId(1);
-	   			 messageToServer.setData("message for chating"+ userName + "want to talk to "+ receiverName);
+//	   			 messageToServer.setData("message for chating"+ userName + "want to talk to "+ receiverName);
+	   			 messageToServer.setData(ciphertext);
 
 		    	 //send a message to server kas{userName, receiverName, R4}
 	   			 String packet = MessageReader.messageToJson(messageToServer);
@@ -309,7 +332,7 @@ public class ServerListener extends Thread{
 		    	 if(messageFromServer.getProtocolId() == 3 && messageFromServer.getStepId() == 2){
 		    		 //get server's response that I can talk to receiver
 		    		 
-		    		 //unpack the message Kas{Kbs{Kab, A}, B, Kab, R1}
+		    		 //unpack the message Kas{Kbs{Kab, A}, B, B's portnumber, Kab, R1}
 		    		 
 		    		 //get Ticket-to-b = Kbs{Kab, A} and save
 		    		 
@@ -324,7 +347,17 @@ public class ServerListener extends Thread{
 		    		    Message messageToClient = new Message();
 		    		    Message messageFromClient = new Message();
 			    		String	hostAddress = "127.0.0.1";
-			    		int	port = 9999;
+			    		
+			    		byte[] portbyte = messageFromServer.getDataBytes();
+			    		byte[] plainbyte = CryptoUtils.decryptByAES(portbyte, aesSessionKey);
+			    		String portString = new String(plainbyte);
+			        	int port = Integer.parseInt(portString);
+			        	System.out.println("the Port# of client: "+port);
+			        	System.out.println("start a socket at dest. port: "+ port);
+
+//			            br.close();
+			            //暂时从控制台输入端口信息
+			        	
 			    		Socket inviteSocket = new Socket(hostAddress, port);
 			    		BufferedReader inviteBr = new BufferedReader(new InputStreamReader(inviteSocket.getInputStream()));
 			    		PrintWriter invitePw = new PrintWriter(inviteSocket.getOutputStream(), true);
@@ -332,18 +365,30 @@ public class ServerListener extends Thread{
 			    		messageToClient.setStepId(3);
 			    		messageToClient.setData("message for chating"+ userName + "want to talk to "+ receiverName);
 
-				    	//send a message to server kas{N2} Kbs{Kab, A}
-			   			String messageToC = MessageReader.messageToJson(messageToClient);
-			   			invitePw.println(messageToC);
+				    	//send a message to receiver peerlistener kas{N2} Kbs{Kab, A}
+			   			String messageToB = MessageReader.messageToJson(messageToClient);
+			   			invitePw.println(messageToB);
 				    	System.out.print("Send Message("+ messageToClient.getProtocolId()+", "+ messageToClient.getStepId() + ")  ");
 				    	 
-				    	//receive feed back from server 
+				    	//receive from peerlistener 
 				    	messageFromClient = MessageReader.getMessageFromStream(inviteBr);
-				    	System.out.print("Get Message("+ messageFromClient.getProtocolId()+", "+ messageFromClient.getStepId() + ")");
+				    	System.out.println("Get Message("+ messageFromClient.getProtocolId()+", "+ messageFromClient.getStepId() + ")");
 
-			    		
 			    		//send message 
 			    		System.out.println("Connecting<sender, receiver>! <"+userName + " : "+receiverName+"> ");
+			    		
+			    		if(messageFromClient.getProtocolId() == 3 && messageFromClient.getStepId() == 4){
+			    			System.out.println("start a new connection");
+			    		}
+			    		
+			    		messageToClient.setProtocolId(3);
+			    		messageToClient.setStepId(5);
+			    		messageToClient.setData("Ka'b' established");
+			    		//send a message to receiver peerlistener kas{ga'modp}
+			   			messageToB = MessageReader.messageToJson(messageToClient);
+			   			invitePw.println(messageToB);
+				    	System.out.println("Send Message("+ messageToClient.getProtocolId()+", "+ messageToClient.getStepId() + ")");
+				    	
 		    		 
 		    	 }else if(messageFromServer.getProtocolId() == 3 && messageFromServer.getStepId() == 3){
 		    		//this user is busy
@@ -356,12 +401,34 @@ public class ServerListener extends Thread{
 		     }
 		     if(command.equalsIgnoreCase("logout")){
 		    	 System.out.println("logout protocol");
-	  			 client.setIsAuthenticated(false);
+		    	 messageToServer.setProtocolId(5);
+	    		 messageToServer.setStepId(1);
+	    		 byte[] listMessage = CryptoUtils.encryptByAES("logout".getBytes(), aesSessionKey);
+		   		 messageToServer.setData(listMessage);
+		    	 
+		   		 //send a message to server kas{"logout", cookie}
+	   			 String packet = MessageReader.messageToJson(messageToServer);
+				 out.println(packet);
+		    	 System.out.print("Send Message("+ messageToServer.getProtocolId()+", "+ messageToServer.getStepId() + ")  ");
+		    	 
+		    	 //receive feed back from server kas{"confirm"}
+		    	 messageFromServer = MessageReader.getMessageFromStream(in);
+		    	 System.out.print("Get Message("+ messageFromServer.getProtocolId()+", "+ messageFromServer.getStepId() + ") ");
+		    	 if(messageFromServer.getProtocolId()==5 && messageFromServer.getStepId()==2){
+		    		 System.out.println("successfully logout!");
+		    		 //kill this socket
+		    		 
+		    		 //kill the peerListener thread
+		    		 
+		    	 }
+		    	 client.setIsAuthenticated(false);
 		    	 break;
 			}
 			if ((command.equalsIgnoreCase("logout")
 				|| command.equalsIgnoreCase("list")
 				|| command.equalsIgnoreCase("chat")) == false){
+				
+//				socket.close();
 				System.out.println("wrong input...");
 			}
 		}

@@ -514,15 +514,19 @@ public class CryptoUtils {
 		/////generate passwords for SERVER
 		/*
 			String salt1 = getSalt();
-	        String securePassword = getSaltHash("team", salt1);
+	        String securePassword = getSaltHash("yawei", salt1);
 	        System.out.println("yawei"+":"+CryptoUtils.bytesToHexString(salt1.getBytes()) +":"+ securePassword);
 			
 	        String salt2 = getSalt();
-	        securePassword = getSaltHash("boss", salt2);
+	        securePassword = getSaltHash("nimita", salt2);
 	        System.out.println("nimita"+":"+CryptoUtils.bytesToHexString(salt2.getBytes()) +":"+ securePassword);
-	        
-
-		*/
+	    */
+	    
+			
+	        String salt3 = getSalt();
+	        String securePassword = getSaltHash("team", salt3);
+	        System.out.println("team"+":"+CryptoUtils.bytesToHexString(salt3.getBytes()) +":"+ securePassword);
+	     
 		/*
 	        FileReader reader = new FileReader("UserInformation.txt");
 	        BufferedReader br = new BufferedReader(reader);

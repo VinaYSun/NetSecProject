@@ -1,5 +1,0 @@
-Username: yawei
-Password: team
-
-Username: nimita
-Password: boss

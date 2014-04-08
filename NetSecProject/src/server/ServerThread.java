@@ -28,7 +28,7 @@ public class ServerThread extends Thread{
 	private static final int LOGIN_AUTH = 1;
 	private static final int LIST_REQUEST = 2;
 	private static final int CHAT_REQUEST = 3;
-	private static final int LOGOUT_REQUEST = 4;
+	private static final int LOGOUT_REQUEST = 5;
 	private BufferedReader in;
 	private PrintWriter out;
 	private LoginRequest loginRequest = null;
@@ -36,6 +36,7 @@ public class ServerThread extends Thread{
 	private LogoutRequest logoutRequest = null;
 	private ChatRequest chatRequest = null;
 	private byte[] aesSessionKey = null;
+	private String clientName;
 
 	public ServerThread(ServerMain server, Socket socket){
 		this.server = server;
@@ -79,19 +80,19 @@ public class ServerThread extends Thread{
 		        		 break;
 		        	 case LIST_REQUEST:
 		        		 if(listRequest == null){
-		        			 listRequest = new ListRequest(server, socket);
+		        			 listRequest = new ListRequest(server, this);
 		        		 }
 		        		 messageToClient = listRequest.handleMessage(messageFromClient);
 		        		 break;
 		        	 case CHAT_REQUEST:
 		        		 if(chatRequest == null){
-		        			 chatRequest = new ChatRequest(server, socket);
+		        			 chatRequest = new ChatRequest(server, this);
 		        		 }
 		        		 messageToClient = chatRequest.handleMessage(messageFromClient);
 		        		 break;
 		        	 case LOGOUT_REQUEST:
 		        		 if(logoutRequest == null) {
-		         		 logoutRequest = new LogoutRequest(server, socket);
+		         		 logoutRequest = new LogoutRequest(server, this);
 		        		 }
 		        		 messageToClient = logoutRequest.handleMessage(messageFromClient);
 		        		 break;
@@ -140,4 +141,11 @@ public class ServerThread extends Thread{
 		this.aesSessionKey = aesSessionKey;
 	}
 
+	public String getClientName() {
+		return clientName;
+	}
+
+	public void setClientName(String clientName) {
+		this.clientName = clientName;
+	}
 }

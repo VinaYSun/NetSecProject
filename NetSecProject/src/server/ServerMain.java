@@ -17,15 +17,7 @@ public class ServerMain {
 	public Map<String, String> passwordBook = null;
 	public ServerSocket serverSocket;
 	public HashMap<String, byte[]> userList = null;
-	public HashMap<String, Integer> userAddress = null;
-
-	public HashMap<String, Integer> getUserAddress() {
-		return userAddress;
-	}
-
-	public void setUserAddress(HashMap<String, Integer> userAddress) {
-		this.userAddress = userAddress;
-	}
+	public HashMap<String, byte[]> userAddress = null;
 
 	public ServerMain() throws IOException {
 		try {
@@ -47,7 +39,8 @@ public class ServerMain {
 	private void initialize() throws FileNotFoundException {
 		userList = new HashMap<String, byte[]>();
 		passwordBook = new HashMap<String, String>();
-		loadPassword("UserInformation.txt");
+		userAddress = new HashMap<String, byte[]>();
+		loadPassword("password.txt");
 	}
 
 	private void loadPassword(String passwordfile) throws FileNotFoundException  {
@@ -106,5 +99,14 @@ public class ServerMain {
 
 	public void setUserList(HashMap<String, byte[]> userList) {
 		this.userList = userList;
+	}
+	
+
+	public HashMap<String, byte[]> getUserAddress() {
+		return userAddress;
+	}
+
+	public void setUserAddress(HashMap<String, byte[]> userAddress) {
+		this.userAddress = userAddress;
 	}
 }

@@ -7,8 +7,10 @@ import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 import utils.CryptoUtils;
 import utils.Message;
@@ -31,6 +33,8 @@ public class LoginRequest{
 	private byte[] sessionkeyKas;
 	private Key aesSessionKey = null;
 	private Map<String, String> passwordBook;
+	private Map<String, byte[]> addressBook;
+	private byte[] userPort;
 	
 	public LoginRequest(ServerMain server, ServerThread serverthread) {
 		this.server = server;
@@ -105,6 +109,7 @@ public class LoginRequest{
 		        dhClientPubKey = map.get("gamodp");
 	        	R1 = map.get("R1");
 	        	R2 = map.get("R2");
+	        	userPort = map.get("port");
 	        	
 	        	if(loginPassword.equals(correctPwd)){
 	        		//get password hashed with salt W = hash{R2|password}
@@ -164,10 +169,16 @@ public class LoginRequest{
 				
 				//add user to the authenticated users list
 				HashMap<String, byte[]> userlist = new HashMap<String, byte[]>();
+				HashMap<String, byte[]> addressBook = new HashMap<String, byte[]>();
+
 				userlist = server.getUserList();
 				userlist.put(username, aesSessionKey.getEncoded());
 				server.setUserList(userlist);
-
+				serverThread.setClientName(username);
+				
+				addressBook = server.getUserAddress();
+				addressBook.put(username, userPort);
+				server.setUserAddress(addressBook);;
 				/*
 				//add user with its port number assigned
 				HashMap<String, Integer> userPort = new HashMap<String, Integer>();

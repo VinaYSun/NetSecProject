@@ -23,7 +23,7 @@ public class ClientMain {
 	public Socket socket;
 	public Map<String, List> peers; 
 	public Map<String, List> dialogList;
-	private int port;
+	public int port;
 	private String hostAddress;
 	private Message messageToServer;
 	private Message messageFromServer;
@@ -32,40 +32,45 @@ public class ClientMain {
 	private MessageReader messageReader;
 	public Boolean isAuthenticated;
 	public ServerSocket peerServerSocket;
-	public int listenerPort;
+	private byte[] sessionKeyKas;
 	
-	public int getListenerPort() {
-		return listenerPort;
-	}
-
-	public void setListenerPort(int listenerPort) {
-		this.listenerPort = listenerPort;
-	}
-
+	
 	public ClientMain(){
 		
 		try {
 
 			initial();
-			//initiate login authentication with server
-	        new ServerListener(this, this.socket);
+			
 	        //talking with peer(initiator)
 	        
 	        	new LocalListener();
 	        	//connecting from peer(recipient)
+	        	/*
 	        	int port = 9000;
 	        	while(NetUtils.isLocalPortUsing(port)){
 	        		port++;
 	        	}
 	        	listenerPort = port;
+	        	*/
+	        	System.out.println("Please assign a port number for client");
+	        	InputStreamReader is_reader = new InputStreamReader(System.in);
+	            String str = new BufferedReader(is_reader).readLine();
+//	            is_reader.close();
+	            //暂时从控制台输入端口信息
+	            int port = Integer.parseInt(str);
+	            this.setPort(port);
 	        	peerServerSocket = new ServerSocket(port);
 
-	        	while(true){
+	            System.out.println("peerServerSocket port number is "+ peerServerSocket.getLocalPort());
+	        	
+	           //initiate login authentication with server
+		        new ServerListener(this, this.socket);
+		        //start thread deal with invitation
+	            while(true){
 	        		Socket peerSocket;
 		        	peerSocket = peerServerSocket.accept();
 					new PeerListener(this, peerSocket).start();
 	        	}
-
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (ConnectException e){
@@ -112,4 +117,21 @@ public class ClientMain {
 	public void setIsAuthenticated(Boolean isAuthenticated) {
 		this.isAuthenticated = isAuthenticated;
 	}
+	
+	public byte[] getSessionKeyKas() {
+		return sessionKeyKas;
+	}
+
+	public void setSessionKeyKas(byte[] sessionKeyKas) {
+		this.sessionKeyKas = sessionKeyKas;
+	}
+
+	public int getPort() {
+		return port;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
+	}
+
 }
