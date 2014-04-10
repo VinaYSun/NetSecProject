@@ -52,16 +52,6 @@ public class ClientMain {
 	        	}
 	        	listenerPort = port;
 	        	*/
-	        	System.out.println("Please assign a port number for client");
-	        	InputStreamReader is_reader = new InputStreamReader(System.in);
-	            String str = new BufferedReader(is_reader).readLine();
-//	            is_reader.close();
-	            //暂时从控制台输入端口信息
-	            int port = Integer.parseInt(str);
-	            this.setPort(port);
-	        	peerServerSocket = new ServerSocket(port);
-
-	            System.out.println("peerServerSocket port number is "+ peerServerSocket.getLocalPort());
 	        	
 	           //initiate login authentication with server
 		        new ServerListener(this, this.socket);
@@ -84,14 +74,38 @@ public class ClientMain {
 		messageReader = new MessageReader();
 		messageToServer = new Message();
 		hostAddress = "127.0.0.1";
-		port = 8899;
 		
 		isAuthenticated = false;
+        System.out.println("Please input the port # of server:");
+		BufferedReader inputRead = new BufferedReader(new InputStreamReader(System.in));
+        String str = inputRead.readLine();
+        int port = Integer.parseInt(str);
+        System.out.println("Connecting server...");
+
 		socket = new Socket(hostAddress, port);
+    	
+		System.out.println("Please assign a port number for client");
+		String portClient = inputRead.readLine();
+		int portOnClient = Integer.parseInt(portClient);
+		
+//		while(NetUtils.isLocalPortUsing(portClient)){
+//			System.out.println("Port is used");
+//			System.out.println("Please input again:");
+//			portClient = is_reader.read();
+//		}
+//        is_reader.close();
+        //暂时从控制台输入端口信息
+        this.setPort(portOnClient);
+    	peerServerSocket = new ServerSocket(portOnClient);
+
+        System.out.println("peerServerSocket port number is "+ peerServerSocket.getLocalPort());
+    	
 	}
 
-	public static void main(String args[]){
-		new ClientMain();
+	public static void main(String args[]) throws IOException{
+
+	   new ClientMain();
+	   
 	}
 
 	public Socket getSocket() {

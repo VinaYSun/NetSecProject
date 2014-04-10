@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.util.HashMap;
@@ -22,8 +23,17 @@ public class ServerMain {
 	public ServerMain() throws IOException {
 		try {
 			initialize();
-			NetUtils.isLocalPortUsing(8899);
-			serverSocket = new ServerSocket(8899);
+			System.out.println("Please input the port # of server:");
+		    InputStreamReader is_reader = new InputStreamReader(System.in);
+	        String str = new BufferedReader(is_reader).readLine();
+	        int port = Integer.parseInt(str);
+	        System.out.println("Connecting server...");
+			if( NetUtils.isLocalPortUsing(port)){
+				System.out.println("Port is used");
+				System.out.println("Please input again:");
+				port = is_reader.read();
+			}
+			serverSocket = new ServerSocket(port);
 			while (true) {
 				Socket client;
 				client = serverSocket.accept();
@@ -70,7 +80,10 @@ public class ServerMain {
 	public static void main(String args[]){
 
 		 try {
+			 
+	        System.out.println("Server Initialized...");
 			new ServerMain();
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
